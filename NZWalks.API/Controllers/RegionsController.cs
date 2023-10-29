@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NZWalks.API.Data;
@@ -10,13 +11,14 @@ namespace NZWalks.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class RegionsController : ControllerBase
     {
 
         private readonly AppDbContext _db;
         private readonly IRegionRepository _regionRepository;
         private IMapper mapper;
-        public RegionsController(AppDbContext db, IRegionRepository regionRepository,IMapper mapper)
+        public RegionsController(AppDbContext db, IRegionRepository regionRepository, IMapper mapper)
         {
             _db = db;
             _regionRepository = regionRepository;
@@ -30,8 +32,8 @@ namespace NZWalks.API.Controllers
             List<Region> regionsDomain = await _regionRepository.GetAllAsync();
             //Map Domain Models to Dtos
             //Return DTOs 
-           // return Ok(mapper.Map<List<RegionDto>>(regionsDomain));
-           return Ok(regionsDomain);
+            // return Ok(mapper.Map<List<RegionDto>>(regionsDomain));
+            return Ok(regionsDomain);
         }
 
         [HttpGet]
@@ -53,16 +55,23 @@ namespace NZWalks.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateRegionDto createRegionDto)
         {
-            //Map or Converter DTO to Region Model
-            Region region = mapper.Map<Region>(createRegionDto);
+            if (ModelState.IsValid)
+            {
+                //Map or Converter DTO to Region Model
+                Region region = mapper.Map<Region>(createRegionDto);
 
-            //Use Domain Model to create Region 
-            region = await _regionRepository.CreateAsync(region);
+                //Use Domain Model to create Region 
+                region = await _regionRepository.CreateAsync(region);
 
-            //Map Domain model back to DTO
-            RegionDto regionDto = mapper.Map<RegionDto>(region);
+                //Map Domain model back to DTO
+                RegionDto regionDto = mapper.Map<RegionDto>(region);
 
-            return CreatedAtAction(nameof(GetById), new { id = regionDto.Id }, regionDto);
+                return CreatedAtAction(nameof(GetById), new { id = regionDto.Id }, regionDto);
+            }
+            else
+            {
+                return BadRequest(ModelState);
+            }
         }
 
         //Update region 
@@ -73,7 +82,7 @@ namespace NZWalks.API.Controllers
             //Check if region exists
             Region existingRegion = await _regionRepository.GetByIdAsync(id);
             if (existingRegion == null)
-            { 
+            {
                 return NotFound();
             }
             existingRegion = await _regionRepository.UpdateAsync(updateRegionDto, existingRegion);
